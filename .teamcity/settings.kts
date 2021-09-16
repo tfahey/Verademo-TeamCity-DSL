@@ -3,6 +3,7 @@ import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.Swabra
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildFeatures.swabra
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.maven
 import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.MavenBuildStep
+import jetbrains.buildServer.configs.kotlin.v2019_2.buildSteps.script
 import jetbrains.buildServer.configs.kotlin.v2019_2.triggers.vcs
 import jetbrains.buildServer.configs.kotlin.v2019_2.vcs.GitVcsRoot
 
@@ -44,10 +45,19 @@ object Build : BuildType({
     }
     steps {
         maven {
-            goals = "clean test package"
+            goals = "clean test package verify"
             pomLocation = "app/pom.xml"
             runnerArgs = "-Dmaven.test.failure.ignore=true"
             localRepoScope = MavenBuildStep.RepositoryScope.MAVEN_DEFAULT
+        }
+        script {
+            scriptContent =  """
+                curl  https://downloads.veracode.com/securityscan/pipeline-scan-LATEST.zip -o pipeline-scan.zip
+                Expand-Archive -Path pipeline-scan.zip -DestinationPath veracode_scanner
+                java -jar veracode_scanner\\pipeline-scan.jar --veracode_api_id '%env.VERACODE_API_ID' \
+                    --veracode_api_key '%env.VERACODE_API_KEY' \
+                    --file target/verademo.war --issue_details true
+            """
         }
         step {
             type = "teamcity-veracode-plugin"
